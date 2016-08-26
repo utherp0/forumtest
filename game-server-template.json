@@ -1,0 +1,271 @@
+{
+   "kind": "Template",
+   "apiVersion": "v1",
+   "metadata": {
+      "name": "vertx-template",
+      "annotations": {
+         "description": "Sample Vert.x application build with Maven",
+         "iconClass": "icon-jboss",
+         "tags": "instant-app,vert.x,maven,java"
+      }
+
+   },
+   "parameters": [
+      {
+         "description": "The name for the application.",
+         "name": "APPLICATION_NAME",
+         "value": "game-server"
+      },
+      {
+         "description": "Custom hostname for service.  Leave blank for default hostname, e.g.: <application-name>.<project>.<default-domain-suffix>",
+         "name": "APPLICATION_HOSTNAME"
+      },
+      {
+         "description": "Git source URI for application",
+         "name": "SOURCE_REPOSITORY_URL",
+         "value": "https://github.com/Red-Hat-Middleware-Keynote/vertx-game-server.git"
+      },
+      {
+         "description": "Git branch/tag reference",
+         "name": "SOURCE_REPOSITORY_REF",
+         "value": "master"
+      },
+      {
+         "description": "Git source secret name",
+         "name": "SOURCE_SECRET_NAME",
+         "value": "git-secret",
+         "required": true
+      },
+      {
+         "description": "Git Directory",
+         "name": "CONTEXT_DIR",
+         "value": ""
+      },
+      {
+         "description": "Application options. These options will be passed to the application command line",
+         "name": "APP_OPTIONS"
+      },
+      {
+         "description": "Github trigger secret",
+         "name": "GITHUB_TRIGGER_SECRET",
+         "from": "[a-zA-Z0-9]{8}",
+         "generate": "expression"
+      },
+      {
+         "description": "Generic build trigger secret",
+         "name": "GENERIC_TRIGGER_SECRET",
+         "from": "[a-zA-Z0-9]{8}",
+         "generate": "expression"
+      },
+      {
+         "description": "Namespace in which the ImageStreams for Red Hat Middleware images are installed. These ImageStreams are normally installed in the openshift namespace. You should only need to modify this if you've installed the ImageStreams in a different namespace/project.",
+         "name": "IMAGE_STREAM_NAMESPACE",
+         "value": "openshift",
+         "required": true
+      }
+   ],
+   "objects": [
+      {
+         "kind": "BuildConfig",
+         "apiVersion": "v1",
+         "metadata": {
+            "name": "${APPLICATION_NAME}",
+            "labels": {
+                "application": "${APPLICATION_NAME}"
+            }
+         },
+         "spec": {
+            "triggers": [
+               {
+                  "type": "GitHub",
+                  "github": {
+                     "secret": "${GITHUB_TRIGGER_SECRET}"
+                  }
+               },
+               {
+                  "type": "Generic",
+                  "generic": {
+                     "secret": "${GENERIC_TRIGGER_SECRET}"
+                  }
+               },
+               {
+                  "type": "ImageChange",
+                  "imageChange": {}
+               }
+            ],
+            "source": {
+               "type": "Git",
+               "git": {
+                  "uri": "${SOURCE_REPOSITORY_URL}",
+                  "ref": "${SOURCE_REPOSITORY_REF}"
+               },
+               "sourceSecret": {
+                  "name": "${SOURCE_SECRET_NAME}"
+               },
+               "contextDir": "${CONTEXT_DIR}"
+            },
+            "strategy": {
+               "type": "Source",
+               "sourceStrategy": {
+                  "from": {
+                     "kind": "ImageStreamTag",
+                     "namespace": "${IMAGE_STREAM_NAMESPACE}",
+                     "name": "vertx-s2i:latest"
+                  }
+               }
+            },
+            "output": {
+               "to": {
+                  "kind": "ImageStreamTag",
+                  "name": "${APPLICATION_NAME}:latest"
+               }
+            },
+            "resources": {}
+         }
+      },
+      {
+         "kind": "ImageStream",
+         "apiVersion": "v1",
+         "metadata": {
+            "name": "${APPLICATION_NAME}",
+            "application": "${APPLICATION_NAME}"
+         },
+         "spec": {
+            "dockerImageRepository": "",
+            "tags": [
+               {
+                  "name": "latest"
+               }
+            ]
+         }
+      },
+      {
+         "kind": "DeploymentConfig",
+         "apiVersion": "v1",
+         "metadata": {
+            "name": "${APPLICATION_NAME}",
+            "labels": {
+                "application": "${APPLICATION_NAME}"
+            }
+         },
+         "spec": {
+            "strategy": {
+               "type": "Rolling",
+               "rollingParams": {
+                  "updatePeriodSeconds": 1,
+                  "intervalSeconds": 1,
+                  "timeoutSeconds": 600
+               },
+               "resources": {}
+            },
+            "triggers": [
+               {
+                  "type": "ConfigChange"
+               },
+               {
+                  "type": "ImageChange",
+                  "imageChangeParams": {
+                     "automatic": true,
+                     "containerNames": [
+                        "${APPLICATION_NAME}"
+                     ],
+                     "from": {
+                        "kind": "ImageStreamTag",
+                        "name": "${APPLICATION_NAME}:latest"
+                     }
+                  }
+               }
+            ],
+            "replicas": 1,
+            "selector": {
+               "deploymentconfig": "${APPLICATION_NAME}"
+            },
+            "template": {
+               "metadata": {
+                  "labels": {
+                     "deploymentconfig": "${APPLICATION_NAME}",
+                     "application": "${APPLICATION_NAME}"
+                  }
+               },
+               "spec": {
+                  "containers": [
+                     {
+                        "name": "${APPLICATION_NAME}",
+                        "image": "${APPLICATION_NAME}",
+                        "ports": [
+                           {
+                              "containerPort": 9001,
+                              "protocol": "TCP"
+                           }
+                        ],
+                        "livenessProbe": {
+                           "tcpSocket": {
+                              "port": 9001
+                           },
+                           "initialDelaySeconds": 30,
+                           "timeoutSeconds": 1
+                        },
+                        "resources": {},
+                        "terminationMessagePath": "/dev/termination-log",
+                        "imagePullPolicy": "IfNotPresent",
+                        "securityContext": {
+                           "capabilities": {},
+                           "privileged": false
+                        },
+                        "env": [
+                           {
+                              "name": "MECHANICS_SERVER",
+                              "value": "http://game-mechanics.demo.svc.cluster.local:8080/api/configuration"
+                           }
+                        ]
+                     }
+                  ],
+                  "restartPolicy": "Always",
+                  "dnsPolicy": "ClusterFirst"
+               }
+            }
+         }
+      },
+      {
+         "kind": "Route",
+         "apiVersion": "v1",
+         "metadata": {
+            "name": "${APPLICATION_NAME}",
+            "labels": {
+                "application": "${APPLICATION_NAME}"
+            }
+         },
+         "spec": {
+            "host": "${APPLICATION_HOSTNAME}",
+            "to": {
+               "kind": "Service",
+               "name": "${APPLICATION_NAME}"
+            }
+         }
+      },
+      {
+         "kind": "Service",
+         "apiVersion": "v1",
+         "metadata": {
+            "name": "${APPLICATION_NAME}",
+            "labels": {
+                "application": "${APPLICATION_NAME}"
+            }
+         },
+         "spec": {
+            "ports": [
+               {
+                  "name": "${APPLICATION_NAME}",
+                  "port": 9001,
+                  "targetPort": 9001
+               }
+            ],
+            "selector": {
+               "deploymentconfig": "${APPLICATION_NAME}"
+            },
+            "type": "ClusterIP",
+            "sessionAffinity": "None"
+         }
+      }
+   ]
+}
