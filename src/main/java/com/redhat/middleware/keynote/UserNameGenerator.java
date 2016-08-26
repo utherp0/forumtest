@@ -18,7 +18,7 @@ public class UserNameGenerator {
     while (i < 100) {
       int random1 = (int) Math.floor(Math.random() * ADJECTIVES.length);
       int random2 = (int) Math.floor(Math.random() * NOUNS.length);
-      username = toTitleCase(ADJECTIVES[random1], NOUNS[random2]);
+      username = "RHForumUK-" + toTitleCase(ADJECTIVES[random1], NOUNS[random2]);
 
       if (!used.add(username)) {
         i++;
