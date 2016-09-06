@@ -81,7 +81,6 @@ public class InternalServiceVerticle extends AbstractVerticle {
   }
 
   private void testAchievementServerAchievement(RoutingContext context) {
-    System.out.println("Returning default achievements");
     context.response().end(defaultAchievements);
   }
 
