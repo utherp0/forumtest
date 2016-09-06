@@ -144,11 +144,19 @@ public class ServerVerticle extends AbstractVerticle {
     });
   }
 
-  private void onAdminConnection(ServerWebSocket socket) {
+  private void onAdminConnection(ServerWebSocket socket) 
+  {
+    String connection = "Admin Connection on Socket " + socket;
+
+    LOGGER.info( connection );
     manageWebSocket("admin", socket);
   }
 
-  private void onPlayerConnection(ServerWebSocket socket) {
+  private void onPlayerConnection(ServerWebSocket socket) 
+  {
+    String connection = "Player Connection on Socket " + socket;
+
+    LOGGER.info( connection );   
     manageWebSocket("player", socket);
   }
 
