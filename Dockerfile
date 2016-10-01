@@ -3,7 +3,7 @@ FROM java:8u92-jre-alpine
 ENV VERTICLE_FILE game-service-1.0.0-SNAPSHOT-fat.jar
 ENV VERTICLE_HOME /usr/verticles
 
-EXPOSE 8080
+EXPOSE 8080 9001 9004
 
 COPY target/$VERTICLE_FILE $VERTICLE_HOME/
 COPY src/main/resources/ $VERTICLE_HOME/
